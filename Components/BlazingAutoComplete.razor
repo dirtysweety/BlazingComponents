@@ -1,0 +1,207 @@
+@using BlazingComponents.Styling
+@using BlazingComponents.Components.Other
+@using BlazingComponents.Components.EventArgs
+@using BlazingComponents.Components.Binding
+@typeparam T
+
+
+<Column Width="@Width" Height="@Height" Style="@_containerStyleStr">
+    <input @onmouseenter="OnInputMouseEnter" @onmouseleave="OnInputMouseLeave" style="border: none; outline: none; border-bottom: @(_currentBorder); background-color: @(BackColor); height: @(Height); color: @(TextColor); text-align: center;"
+           type="text" placeholder="@Placeholder" @bind:event="oninput" @bind:get="@(_input)" @bind:set="OnInputCore" />
+    
+    @if (_matches.Any())
+    {
+        <Column Style="@_sugContainerStyleStr">
+            @foreach (var matchResult in _matches)
+            {
+                <BlazingAutoCompleteItem @key="matchResult.Item" T="T" Item="matchResult.Item" LeftText="@(matchResult.Left)" CenterText="@(matchResult.Center)" RightText="@(matchResult.Right)" Border="none" BackColor="@ListBackColor" TextColor="@ListTextColor" Height="@Height" HoverBackColor="@ListHoverBackColor" HoverTextColor="@ListHoverTextColor" Selected="ApplySuggestion"></BlazingAutoCompleteItem>
+            }
+        </Column>
+    }
+</Column>
+
+
+@code
+{
+
+    private readonly StyleManager _manager = new();
+    private string _containerStyleStr = "";
+    private string _sugContainerStyleStr = "";
+    
+    string _currentBorder = "";
+    bool _hovering;
+
+    string _input = "";
+    readonly List<BlazingAutoCompleteMatchResult<T>> _matches = new();
+    bool _firstOnParametersSet = true;
+
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public BlazingAutoCompleteContext<T>? Context { get; set; }
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public string TextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter, EditorRequired]
+    public List<T>? Collection { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<T, string?>? SearchSelector { get; set; }
+
+    [Parameter]
+    public string ListBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string ListTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string ListHoverBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string ListHoverTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public Func<T, string>? LeftTextSelector { get; set; }
+
+    [Parameter]
+    public Func<T, string>? RightTextSelector { get; set; } //TODO Can remove and use RenderFragment instead
+
+    [Parameter]
+    public EventCallback<BlazingAutoCompleteContext<T>> ContextChanged { get; set; }
+    
+
+    Task OnInputCore(string input)
+    {
+        _input = input;
+        Context!.Text = input;
+        return PerformFilteringAsync();
+    }
+
+    Task PerformFilteringAsync()
+    {
+        _matches.Clear();
+        Context!.WasSelection = false;
+        Context.SelectedItem = default;
+        if (_input == "" || Collection == null || Collection.Count == 0 || SearchSelector == null)
+        {
+            return ContextChanged.InvokeAsync(Context);
+
+        }
+        foreach (var item in Collection)
+        {
+            var propValue = SearchSelector(item);
+            if (string.IsNullOrEmpty(propValue)) continue;
+            if (!propValue.StartsWith(_input)) continue;
+            //Matched
+            var left = LeftTextSelector?.Invoke(item) ?? "";
+            var center = propValue;
+            var right = RightTextSelector?.Invoke(item) ?? "";
+            _matches.Add(new BlazingAutoCompleteMatchResult<T>(left, center, right, item));
+        }
+        return ContextChanged.InvokeAsync(Context);
+    }
+
+    Task ApplySuggestion(BlazingAutoCompleteItemSelectedEventArgs<T> args)
+    {
+        _input = SearchSelector!.Invoke(args.SelectedItem) ?? "";
+        Context!.Text = _input;
+        Context.WasSelection = true;
+        Context.SelectedItem = args.SelectedItem;
+        _matches.Clear();
+        return ContextChanged.InvokeAsync(Context);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        _manager.OnParametersSet();
+        if (Context == null) throw new Exception("The provided Args is null");
+        SyncBorder();
+        bool shouldFilter = false;
+        if (_firstOnParametersSet)
+        {
+            _firstOnParametersSet = false;
+            _input = Context.Text;
+            shouldFilter = true;
+        }
+        else
+        {
+            bool differentFromInput = _input != Context.Text;
+            _input = Context.Text;
+            if (differentFromInput)
+            {
+                shouldFilter = true;
+            }
+        }
+        if (shouldFilter) await PerformFilteringAsync();
+    }
+
+
+    private void OnInputMouseEnter()
+    {
+        _hovering = true;
+        SyncBorder();
+    }
+
+    private void OnInputMouseLeave()
+    {
+        _hovering = false;
+        SyncBorder();
+    }
+
+    void SyncBorder()
+    {
+        _currentBorder = _hovering ? BorderHover : BorderNormal;
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _manager.CreateStyle(s => _containerStyleStr = s, () =>
+        {
+            var s = new StyleString
+            {
+                ["position"] = "relative",
+                ["font-size"] = FontSize
+            };
+            return s;
+        });
+        
+        _manager.CreateStyle( s => _sugContainerStyleStr = s, () =>
+        {
+            var s = new StyleString
+            {
+                ["box-shadow"] = "8px 8px 30px -8px #000000",
+                ["position"] = "absolute",
+                ["width"] = "100%", //Absolutely positioned.
+                ["z-index"] = "1",
+                ["top"] = Height
+            };
+            return s;
+        });
+
+    }
+
+    
+}

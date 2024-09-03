@@ -1,0 +1,46 @@
+
+@if (!_toHide)
+{
+    <div style="display: flex; flex-direction: column; width: @Width; height: @Height" class="BlazingComponents_HideScrollbar">
+        <div style="display: flex; flex-direction: column; height: 100%; position: relative; animation-name: BlazingComponents_Component_Transition_Animation_ShowUp; animation-duration: @TransitionDuration; animation-fill-mode: forwards; animation-timing-function: linear">
+            @ChildContent
+        </div>
+    </div>
+}
+
+
+
+
+@code {
+    
+    bool _toHide = false;
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string TransitionDuration { get; set; } = "400ms";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    public void Perform()
+    {
+        _toHide = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (!_toHide) return;
+        _toHide = false;
+        StateHasChanged();
+    }
+
+}

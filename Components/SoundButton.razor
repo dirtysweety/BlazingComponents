@@ -1,0 +1,221 @@
+@using NAudio.Wave
+@using BlazingComponents.Styling
+@implements IDisposable
+
+
+<Row Width="@Width" Height="@Height" Style="@_containerStyleStr">
+    @if (_started)
+    {
+        <BlazingButton
+            Width="50%"
+            Height=""
+            Click="StopPlaying"
+            Border="none"
+            Text="Stop"
+            FontSize=""
+            Color="@Color"
+            BackColor="@BackColor"
+            HoverColor="@HoverColor"
+            HoverBackColor="@HoverBackColor"
+            Transition="color 1.5s, background-color 1.5s">
+        </BlazingButton>
+        @if (_paused)
+        {
+            <BlazingButton Width="50%"
+                           Height=""
+                           Click="ResumePlaying"
+                           Border="none"
+                           Text="Resume"
+                           FontSize=""
+                           Color="@Color"
+                           BackColor="@BackColor"
+                           HoverColor="@HoverColor"
+                           HoverBackColor="@HoverBackColor"
+                           Transition="@(Transition)">
+            </BlazingButton>
+        }
+        else
+        {
+           
+            <BlazingButton
+                Width="50%"
+                Height=""
+                Click="PausePlaying"
+                Border="none"
+                Text="Pause"
+                FontSize=""
+                Color="@Color"
+                BackColor="@BackColor"
+                HoverColor="@HoverColor"
+                HoverBackColor="@HoverBackColor"
+                Transition="@(Transition)">
+            </BlazingButton>
+        }
+    }
+    else
+    {
+        <BlazingButton
+            Width="100%"
+            Height=""
+            Click="StartPlaying"
+            Border="none"
+            Text="Play"
+            FontSize=""
+            Color="@Color"
+            BackColor="@BackColor"
+            HoverColor="@HoverColor"
+            HoverBackColor="@HoverBackColor"
+            Transition="@(Transition)">
+        </BlazingButton>
+    }
+</Row>
+
+
+@code
+{
+    private readonly StyleManager _manager = new();
+    private string _containerStyleStr = "";
+
+    bool _init = true;
+    private WaveOutEvent? _player;
+    private AudioFileReader? _reader;
+    private bool _started;
+    private bool _paused;
+    private string _lastAddress = ""; //To prevent redundant reloading of sound if Address has not changed.
+
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string Border { get; set; } = "";
+
+    [Parameter]
+    public string Color { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "inherit";
+
+    [Parameter, EditorRequired]
+    public string SoundAddress { get; set; } = "";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public string Transition { get; set; } = "";
+
+    private void StartPlaying()
+    {
+        _started = true;
+        _paused = false;
+        _reader!.Position = 0;
+        _player!.Play();
+    }
+
+    private void PausePlaying()
+    {
+        _paused = true;
+        _player!.Pause();
+    }
+
+    private void ResumePlaying()
+    {
+        _paused = false;
+        _player!.Play();
+    }
+
+    private void StopPlaying()
+    {
+        _player!.Stop();
+    }
+
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _manager.OnParametersSet();
+        if (!File.Exists(SoundAddress)) throw new Exception("Sound file not found");
+        if (_init)
+        {
+            _init = false;
+            _lastAddress = SoundAddress;
+            _reader = new AudioFileReader(SoundAddress);
+            _player = new WaveOutEvent();
+            _player.Init(_reader);
+            _player.PlaybackStopped += OnStopped;
+        }
+        else
+        {
+            if (SoundAddress == _lastAddress) return; //Address not changed.
+
+            if (_player!.PlaybackState == PlaybackState.Playing)
+            {
+                _player!.Stop(); //ReInit will run in OnStopped
+            }
+            else
+            {
+                ReInit();
+            }
+        }
+    }
+
+    private void StopTask()
+    {
+        _started = false;
+        _paused = false;
+        if (_lastAddress != SoundAddress)
+        {
+            ReInit();
+        }
+        StateHasChanged();
+    }
+
+    private async void OnStopped(object? sender, StoppedEventArgs e)
+    {
+        //Maybe also use ShouldRender to prevent the unneeded render
+        //that happens before this method is run ( void cannot be awaited )
+        await InvokeAsync(StopTask);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _manager.CreateStyle(s => _containerStyleStr = s, () => $"border: {Border}; font-size: {FontSize}; {Style}");
+
+    }
+
+    void ReInit()
+    {
+        _lastAddress = SoundAddress;
+        _player!.PlaybackStopped -= OnStopped;
+        _reader!.Dispose();
+        _player!.Dispose();
+        _reader = new AudioFileReader(SoundAddress);
+        _player = new WaveOutEvent();
+        _player.Init(_reader);
+        _player.PlaybackStopped += OnStopped;
+    }
+
+    public void Dispose()
+    {
+        if (_player == null || _reader == null) return;
+        _player!.PlaybackStopped -= OnStopped;
+        _player.Dispose();
+        _reader.Dispose();
+        _player = null;
+        _reader = null;
+    }
+}

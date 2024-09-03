@@ -1,0 +1,106 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" @onclick:stopPropagation="@(ClickStopPropagation)" style="display: flex; width: @(Width); height: @(Height); position: relative; font-size: @(FontSize); background-color: @(_currentBackColor); color: @(_currentColor); border: @(_currentBorder)">
+    <InputFile OnChange="OnFileChanged" id="@(_labelsId)" accept="@(Accepts)" style="position: absolute; width: 100%; height: 100%; opacity: 0; z-index: 0"></InputFile>
+    <div style="display: flex; flex-direction: column; width: 100%">
+        <label style="flex-grow: 1; flex-shrink: 1; z-index: 1; cursor: pointer; user-select: none" for="@(_labelsId)"></label>
+        <label style="text-align: center; z-index: 1; cursor: pointer; user-select: none" for="@(_labelsId)">@(Text)</label>
+        <label style="flex-grow: 1; flex-shrink: 1; z-index: 1; cursor: pointer; user-select: none" for="@(_labelsId)"></label>
+    </div>
+</div>
+
+@code {
+    string _labelsId = "";
+    bool _hovering;
+    string _currentBackColor = "";
+    string _currentColor = "";
+    private string _currentBorder = "";
+
+    [Parameter]
+    public string Text { get; set; } = "Select File";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string Accepts { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string Color { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string Border { get; set; } = "";
+
+    [Parameter]
+    public string HoverBorder { get; set; } = "";
+
+    [Parameter]
+    public bool ClickStopPropagation { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<InputFileChangeEventArgs> FileSelected { get; set; }
+
+    private Task OnFileChanged(InputFileChangeEventArgs obj)
+    {
+        return FileSelected.InvokeAsync(obj);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _labelsId = GenerateId();
+    }
+
+    private static string GenerateId()
+    {
+        // ReSharper disable StringLiteralTypo
+        List<char> validStart = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".ToList();
+        // ReSharper restore StringLiteralTypo
+        string id;
+        do
+        {
+            id = Guid.NewGuid().ToString();
+        } while (!validStart.Contains(id.First()));
+        return id;
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        SyncColors();
+    }
+
+    void SyncColors()
+    {
+        _currentColor = _hovering ? HoverColor : Color;
+        _currentBackColor = _hovering ? HoverBackColor : BackColor;
+        _currentBorder = _hovering ? HoverBorder == "" ? Border : HoverBorder : Border;
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncColors();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncColors();
+    }
+}

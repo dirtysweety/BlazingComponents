@@ -1,0 +1,92 @@
+@using System.Globalization
+
+
+<div style="display: flex; width: @(Width); height: @(Height); justify-content: center; align-items: center; color: @(_currentColor); background-color: @(_currentBackColor); border: @(_currentBorder); user-select: none; transition: @(Transition); @Style"
+     @onclick:stopPropagation="@ClickStopPropagation" @onclick="OnClick"
+     @onmouseenter="OnMouseEnter"
+     @onmouseleave="OnMouseLeave">
+    <div style="font-size: @(FontSize)">@(Text)</div>
+</div>
+
+
+
+@code
+{
+    private bool _hovering = false;
+    private string _currentColor = "";
+    private string _currentBackColor = "";
+    private string _currentBorder = "";
+
+    [Parameter]
+    public string Text { get; set; } = "Blazing Button";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string Color { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string Border { get; set; } = "";
+
+    [Parameter]
+    public string HoverBorder { get; set; } = "";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> Click { get; set; }
+
+    [Parameter]
+    public bool ClickStopPropagation { get; set; } = true;
+
+    [Parameter]
+    public string Transition { get; set; } = "";
+
+
+    private Task OnClick(MouseEventArgs args)
+    {
+        return Click.InvokeAsync(args);
+    }
+    
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        SyncColors();
+    }
+
+    void SyncColors()
+    {
+        _currentColor = _hovering ? HoverColor : Color;
+        _currentBackColor = _hovering ? HoverBackColor : BackColor;
+        _currentBorder = _hovering ? HoverBorder == "" ? Border : HoverBorder : Border;
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncColors();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncColors();
+    }
+}

@@ -1,0 +1,142 @@
+﻿@using System.Diagnostics
+
+
+<Row Width="@Width" Height="@Height" Style="color: white">
+    <Column Width="@(FirstColumnWidth + "%")">
+
+        <Column Height="@(TopColumnsHeight + "%")">
+            @foreach (string thr in Thresholds!)
+            {
+                <Row Height="@(FirstColumnItemApproxHeight + "%")" Style="justify-content: center; align-items: center; border-right: 1px solid white">
+                    <div style="user-select: none; font-size: @FontSize">@(thr)</div>
+                </Row>
+            }
+        </Column>
+        <Row Height="@(BottomRowsHeight + "%")"></Row>
+
+    </Column>
+
+    <Column Width="@(SecondColumnWidth + "%")">
+        
+        <Column Height="@(TopColumnsHeight + "%")">
+            @foreach (var thr in Thresholds!)
+            {
+                <Row Height="@(FirstColumnItemApproxHeight + "%")" Style="flex-grow: 1">
+                    @foreach (var frq in Frequencies!)
+                    {
+                        <GraphItem @ref="_refs[frq][thr]" Width="@(SecondColumnItemApproxWidth + "%")" Frequency="frq" Threshold="thr" HoverBackColor="yellow" MouseEnter="OnMouseEnter" MouseLeave="OnMouseLeave"></GraphItem>
+                    }
+                </Row>
+            }
+        </Column>
+        <Row Height="@(BottomRowsHeight + "%")">
+            @foreach (string frq in Frequencies!)
+            {
+                <Row Width="@(SecondColumnItemApproxWidth + "%")" Style="flex-grow: 1; justify-content: center; align-items: center; border-top: 1px solid white">
+                    <div style="user-select: none; font-size: @FontSize">@(frq)</div>
+                </Row>
+            }
+        </Row>
+
+    </Column>
+</Row>
+
+
+@code
+{
+    double _baseWidth = 0;
+    double _baseHeight = 0;
+
+    double _residualWidth = 0;
+    double _residualHeight = 0;
+
+    double FirstColumnWidth => _baseWidth + _residualWidth;
+    double SecondColumnWidth => 100d - FirstColumnWidth;
+
+    double TopColumnsHeight => 100d - BottomRowsHeight;
+    double BottomRowsHeight => _baseHeight + _residualHeight;
+
+    double FirstColumnItemApproxHeight => 100d / Thresholds!.Count;
+    double SecondColumnItemApproxWidth => 100d / Frequencies!.Count;
+
+    readonly Dictionary<string, Dictionary<string, GraphItem?>> _refs = new();
+
+    List<string> _freqs = new();
+    List<string> _thrs = new();
+    //TODO save somewhere which ones not to show 
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "";
+
+    [Parameter]
+    public List<string>? Frequencies { get; set; }
+
+    [Parameter]
+    public List<string>? Thresholds { get; set; }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (Frequencies == null) throw new Exception();
+        if (Thresholds == null) throw new Exception();
+        foreach (var frq in Frequencies)
+        {
+            var dic = new Dictionary<string, GraphItem?>();
+            foreach (var thr in Thresholds)
+            {
+                dic.Add(thr, null);
+            }
+            _refs.Add(frq, dic);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Frequencies == null) throw new Exception();
+        if (Thresholds == null) throw new Exception();
+        base.OnParametersSet();
+        int x = Frequencies.Count + 1;
+        int y = Thresholds.Count + 1;
+
+        _baseWidth = Math.Round(100d / x, 3, MidpointRounding.ToZero);
+        _baseHeight = Math.Round(100d / y, 3, MidpointRounding.ToZero);
+
+        _residualWidth = 100 - (x * _baseWidth);
+        _residualHeight = 100 - (y * _baseHeight);
+    }
+
+    private List<GraphItem?> GetHoverTargets((string, string) pack)
+    {
+        var (frq, thr) = pack;
+        List<GraphItem?> targets = new List<GraphItem?>();
+        foreach (var pair in _refs)
+        {
+            if (pair.Key == frq)
+            {
+                targets.AddRange(pair.Value.Values);
+                continue;
+            }
+            targets.AddRange(from pair2 in pair.Value where pair2.Key == thr select pair2.Value);
+        }
+        return targets;
+    }
+
+
+    private void OnMouseEnter((string, string) pack)
+    {
+        var targets = GetHoverTargets(pack);
+        foreach (var itemRef in targets) itemRef?.DoHover();
+    }
+
+    private void OnMouseLeave((string, string) pack)
+    {
+        var targets = GetHoverTargets(pack);
+        foreach (var itemRef in targets) itemRef?.UndoHover();
+    }
+}

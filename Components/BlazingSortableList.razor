@@ -1,0 +1,67 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime Js
+@typeparam T
+
+
+<div style="display: flex; flex-direction: column; width: @Width; height: @Height" id="@Id">
+    @if (Items != null)
+    {
+        foreach (var item in Items)
+        {
+            @if (Template is not null)
+            {
+                @Template(item)
+            }
+        }
+    }
+</div>
+
+
+@code {
+
+    private DotNetObjectReference<BlazingSortableList<T>>? _selfReference;
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment<T>? Template { get; set; }
+
+    [Parameter]
+    public List<T>? Items { get; set; }
+
+    [Parameter]
+    public EventCallback<(int oldIndex, int newIndex)> Changed { get; set; }
+
+    [Parameter]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [Parameter]
+    public string Handle { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Filter { get; set; }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfReference = DotNetObjectReference.Create(this);
+            var module = await Js.InvokeAsync<IJSObjectReference>("import", "./_content/BlazingComponents/BlazingSortableList.js");
+            await module.InvokeAsync<string>("init", Id, "", "", false, true, Handle, Filter, _selfReference);
+        }
+    }
+
+    [JSInvokable]
+    public Task OnUpdateJS(int oldIndex, int newIndex)
+    {
+        return Changed.InvokeAsync((oldIndex, newIndex));
+    }
+    
+
+    public void Dispose() => _selfReference?.Dispose();
+}

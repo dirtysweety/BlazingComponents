@@ -1,0 +1,99 @@
+@using BlazingComponents.Styling
+
+
+<Column Width="@(Width)" Height="@(Height)" Style="@(_containerStyleStr)">
+    <div style="flex-grow: 0; font-size: @(LabelFontSize); align-self: flex-start; user-select: none; color: @(LabelTextColor)">@Label</div>
+    <ColumnGap Gap="2px"></ColumnGap>
+    <div style="flex-grow: 1; flex-direction: column">
+        <BlazingTimedInput Placeholder="@(Placeholder)" @bind-Text:get="@(_input)" @bind-Text:set="OnTimedInput" Width="100%" Height="100%" FontSize="@(InputFontSize)" TextColor="@InputTextColor" BackColor="@InputBackColor" DelayMilliseconds="@DelayMilliseconds" ColorChangeWhileTyping="true" BorderNormal="@(BorderNormal)" BorderHover="@(BorderHover)" BorderTyping="@(BorderTyping)" BorderError="" Validator="_ => true" Style=""></BlazingTimedInput>
+    </div>
+</Column>
+
+
+@code
+{
+    private readonly StyleManager _manager = new();
+    private string _containerStyleStr = "";
+    private string _input = "";
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string InputFontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string LabelFontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public bool ColorChangeWhileTyping { get; set; }
+
+    [Parameter]
+    public string BorderTyping { get; set; } = "";
+
+    [Parameter]
+    public int DelayMilliseconds { get; set; } = 2000;
+
+    [Parameter]
+    public string LabelTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string InputTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string InputBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public EventCallback<string> TextChanged { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _manager.OnParametersSet();
+        _input = Text;
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        string StyleBuilder()
+        {
+            var s = new StyleString
+            {
+                ["background-color"] = BackColor
+
+            };
+            return s;
+        }
+        _manager.CreateStyle(s => _containerStyleStr = s, StyleBuilder);
+    }
+
+    private Task OnTimedInput(string args)
+    {
+        return TextChanged.InvokeAsync(args);
+    }
+
+
+}

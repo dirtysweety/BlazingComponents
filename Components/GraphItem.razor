@@ -1,0 +1,49 @@
+﻿<div @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" style="display: flex; width: @(Width); background-color: @(_hovering ? HoverBackColor : "transparent")">
+
+</div>
+
+
+@code
+{
+    bool _hovering;
+
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Frequency { get; set; } = "";
+
+    [Parameter]
+    public string Threshold { get; set; } = "";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<(string, string)> MouseEnter { get; set; }
+
+    [Parameter]
+    public EventCallback<(string, string)> MouseLeave { get; set; }
+
+    private Task OnMouseEnter()
+    {
+        return MouseEnter.InvokeAsync((Frequency, Threshold));
+    }
+
+    private Task OnMouseLeave()
+    {
+        return MouseLeave.InvokeAsync((Frequency, Threshold));
+    }
+
+
+    public void DoHover()
+    {
+        _hovering = true;
+    }
+
+    public void UndoHover()
+    {
+        _hovering = false;
+    }
+}

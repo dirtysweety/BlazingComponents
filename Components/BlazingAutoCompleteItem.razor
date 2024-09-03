@@ -1,0 +1,91 @@
+@using BlazingComponents.Components.EventArgs
+@typeparam T
+
+
+<div style="display: flex; justify-content: center; align-items: center; border: @(Border); height: @(Height); background-color: @(_currentBackColor); cursor: pointer; color: @(_currentColor)" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" @onclick="@OnSelected" @onclick:stopPropagation="true">
+    
+    <div style="position: relative; align-items: center; display: flex; flex-grow: 1; padding: 0 0 0 5px">
+        <div style="position: absolute; width: max-content">@(LeftText)</div>
+    </div>
+
+    <div>@(CenterText)</div>
+
+    <div style="position: relative; align-items: center; display: flex; flex-grow: 1; justify-content: flex-end; padding: 0 5px 0 0">
+        <div style="position: absolute; width: max-content">@(RightText)</div>
+    </div>
+
+</div>
+
+
+
+
+
+@code
+{
+    bool _hovering = false;
+    string _currentColor = "";
+    string _currentBackColor = "";
+
+    [Parameter, EditorRequired]
+    public T? Item { get; set; }
+
+    [Parameter, EditorRequired]
+    public string LeftText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string CenterText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string RightText { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Border { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Height { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string BackColor { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string TextColor { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string HoverBackColor { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string HoverTextColor { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public EventCallback<BlazingAutoCompleteItemSelectedEventArgs<T>> Selected { get; set; }
+    
+    Task OnSelected()
+    {
+        return Selected.InvokeAsync(new BlazingAutoCompleteItemSelectedEventArgs<T>(Item!));
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Item == null) throw new Exception("The provided item is not present.");
+        SyncColors();
+    }
+
+    void SyncColors()
+    {
+        _currentBackColor = _hovering ? HoverBackColor : BackColor;
+        _currentColor = _hovering ? HoverTextColor : TextColor;
+    }
+
+    private void OnMouseEnter(MouseEventArgs obj)
+    {
+        _hovering = true;
+        SyncColors();
+    }
+
+    private void OnMouseLeave(MouseEventArgs obj)
+    {
+        _hovering = false;
+        SyncColors();
+    }
+}

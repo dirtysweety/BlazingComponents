@@ -1,0 +1,184 @@
+﻿@using BlazingComponents.Components.Other
+@using BlazingComponents.Styling
+@using BlazingUtilities
+@implements IDisposable
+
+
+
+<Column Width="@(Width)" Height="@(Height)" Style="@(_containerStyleStr)">
+    @if (ShowLabel)
+    {
+        <div style="flex-grow: 0; font-size: @(LabelFontSize); align-self: flex-start; user-select: none; color: @(LabelTextColor)">@Label</div>
+        <textarea @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" @bind:event="oninput" @bind:get="@(_current)" @bind:set="OnInputCore" placeholder="@(Placeholder)" style="resize: none; margin-top: 6px; flex-grow: 1; border: @(_currentBorder); outline: none; font-size: @(InputFontSize); background-color: @(InputBackColor); color: @(InputTextColor)"></textarea>
+    }
+    else
+    {
+        <textarea @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" @bind:event="oninput" @bind:get="@(_current)" @bind:set="OnInputCore" placeholder="@(Placeholder)" style="resize: none; height: 100%; border: @(_currentBorder); outline: none; font-size: @(InputFontSize); background-color: @(InputBackColor); color: @(InputTextColor)"></textarea>
+
+    }
+    </Column>
+
+
+@code
+{
+    private TimedEventRaiser? _raiser;
+    private readonly StyleManager _manager = new();
+    private string _containerStyleStr = "";
+    string _current = "";
+    bool _hovering;
+    string _currentBorder = "";
+    string _lastText = "";
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public bool ShowLabel { get; set; }
+
+    [Parameter]
+    public string LabelFontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string InputFontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public bool ColorChangeWhileTyping { get; set; }
+
+    [Parameter]
+    public string BorderTyping { get; set; } = "";
+
+    [Parameter]
+    public int DelayMilliseconds { get; set; } = 2000; //TODO: Can De-sync. Create ParameterChangeDetector and ParameterChangeDetectorFactory ????
+
+    [Parameter]
+    public string LabelTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string InputTextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string InputBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter/*, EditorRequired*/]
+    public EventCallback<string> TextChanged { get; set; }
+
+    void OnInputCore(string input)
+    {
+        if (_raiser == null) // Disposed
+        {
+            return;  //Just Ignore Everything!!
+        }
+        _current = input;
+        _raiser.Set();
+        SyncBorder();
+    }
+
+    private Task WorkItem()
+    {
+        SyncBorder();
+        return TextChanged.InvokeAsync(_current);
+    }
+
+    private Task OnEventRaised()
+    {
+        return InvokeAsync(WorkItem);
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncBorder();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncBorder();
+
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _raiser = new TimedEventRaiser(DelayMilliseconds, OnEventRaised);
+        _lastText = Text;
+        _current = Text;
+        string StyleBuilder()
+        {
+            var s = new StyleString
+            {
+                ["background-color"] = BackColor
+
+            };
+            return s;
+        }
+        _manager.CreateStyle(s => _containerStyleStr = s, StyleBuilder);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (_raiser == null) // Disposed
+        {
+            return;  //Just Ignore Everything!!
+        }
+        _manager.OnParametersSet();
+        if (Text != _lastText)
+        {
+            //Text has changed. Apply the new text and
+            //stop the raiser.
+            _lastText = Text;
+            _current = Text;
+            _raiser.CancelIfRunning();
+        }
+        SyncBorder();
+    }
+
+    void SyncBorder()
+    {
+        if (_raiser == null) // Disposed
+        {
+            return; //Just Ignore Everything!!
+        }
+        _currentBorder = _raiser!.Running && ColorChangeWhileTyping ? BorderTyping : _hovering ? BorderHover : BorderNormal;
+    }
+
+    public Task CancelTyping()
+    {
+        if (_raiser == null) // Disposed
+        {
+            return Task.CompletedTask;  //Just Ignore Everything!!
+        }
+        bool canceled = _raiser.CancelIfRunning();
+        return canceled ? WorkItem() //Raiser got actually canceled. It was active.
+            : Task.CompletedTask; //No typing was in progress.
+    }
+
+
+    public void Dispose()
+    {
+        _raiser?.Dispose();
+        _raiser = null;
+    } 
+}

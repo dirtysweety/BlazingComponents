@@ -1,0 +1,178 @@
+@using System.Timers
+@using BlazingComponents.Components.Other
+@using BlazingUtilities
+@implements IDisposable
+
+
+<input @bind:event="oninput" @bind:get="@(_current)" @bind:set="OnInput" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" style="width: @Width; height: @Height; font-size: @FontSize; border: none; outline: none; border-bottom: @(_currentBorder); background-color: @(BackColor); font-size: @(FontSize); color: @(TextColor); text-align: center; @Style"
+       type="text" placeholder="@Placeholder" />
+
+
+@code
+{
+    string _current = "";
+    TimedEventRaiser? _raiser;
+    bool _hovering;
+    string _currentBorder = "";
+    bool _isValid;
+    //Keep track of changes in Text. So that when a re-render
+    //takes place while the event raiser is running, we know
+    //what to do
+    string _lastText = ""; 
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public string BorderError { get; set; } = "";
+
+    [Parameter]
+    public Func<string, bool>? Validator { get; set; } = _ => true;
+
+    [Parameter]
+    public bool ColorChangeWhileTyping { get; set; }
+
+    [Parameter]
+    public string BorderTyping { get; set; } = "";
+
+    [Parameter]
+    public int DelayMilliseconds { get; set; } = 2000;
+
+    [Parameter]
+    public string TextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> TextChanged { get; set; }
+    
+
+    void OnInput(string input)
+    {
+        if (_raiser == null) // Disposed
+        {
+            return; //Just Ignore Everything!!
+        }
+        _current = input;
+        _raiser.Set();
+        SyncBorder();
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncBorder();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncBorder();
+
+    }
+
+    private void Validate()
+    {
+        _isValid = Validator!(_current);
+    }
+
+    private Task OnEventRaised()
+    {
+        return InvokeAsync(WorkItem);
+    }
+
+    private Task WorkItem()
+    {
+        //One case: Suppose that the timer finishes exactly when a re-render is already happening.
+        //This work item will obviously run after the re-render. But the raiser has already set
+        //it's Running property to false. So the re-render code sees the raiser as not running
+        //but the elapsed callback has not run yet.
+        //This does not create any problem with the current component code.
+        Validate();
+        SyncBorder();
+        if (_isValid)
+        {
+            // StateHasChanged happens by our parent
+            return TextChanged.InvokeAsync(_current);
+        }
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _raiser = new TimedEventRaiser(DelayMilliseconds, OnEventRaised);
+        _lastText = Text;
+        _current = Text;
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Validator == null) throw new Exception("The validator is null");
+        if (_raiser == null) // Disposed
+        {
+            return;  //Just Ignore Everything!!
+        }
+        if (Text != _lastText)
+        {
+            //Text has changed. Apply the new text and
+            //stop the raiser.
+            _lastText = Text;
+            _current = Text;
+            _raiser!.CancelIfRunning();
+        }
+        Validate();
+        SyncBorder();
+    }
+
+    void SyncBorder()
+    {
+        if (_raiser == null) // Disposed
+        {
+            return; //Just Ignore Everything!!
+        }
+        _currentBorder = _raiser!.Running && ColorChangeWhileTyping ? BorderTyping : _isValid ? _hovering ? BorderHover : BorderNormal : BorderError;
+    }
+
+    public Task CancelTyping()
+    {
+        if (_raiser == null) // Disposed
+        {
+            return Task.CompletedTask;  //Just Ignore Everything!!
+        }
+        bool canceled = _raiser.CancelIfRunning();
+        return canceled ? WorkItem() //Raiser got actually canceled. It was active.
+            : Task.CompletedTask; //No typing was in progress.
+    }
+
+
+    public void Dispose()
+    {
+        _raiser?.Dispose();
+        _raiser = null;
+    }
+}

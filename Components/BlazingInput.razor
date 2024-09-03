@@ -1,0 +1,73 @@
+﻿<input @onmouseenter="OnInputMouseEnter" @onmouseleave="OnInputMouseLeave" @bind:event="oninput" @bind:get="@(_current)" @bind:set="OnInput" style="width: @(Width); height: @(Height); font-size: @(FontSize); border: none; outline: none; border-bottom: @(_currentBorder); background-color: @(BackColor); color: @(TextColor); text-align: center;"
+       type="text" placeholder="@Placeholder" />
+
+
+@code
+{
+
+    bool _hovering;
+    string _currentBorder = "";
+    string _current = "";
+
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public string Text { get; set; } = "";
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public string TextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public EventCallback<string> TextChanged { get; set; }
+    
+
+    Task OnInput(string input)
+    {
+        _current = input;
+        return TextChanged.InvokeAsync(input);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        _current = Text;
+        SyncBorder();
+    }
+
+    private void OnInputMouseEnter()
+    {
+        _hovering = true;
+        SyncBorder();
+    }
+
+    private void OnInputMouseLeave()
+    {
+        _hovering = false;
+        SyncBorder();
+    }
+
+    void SyncBorder()
+    {
+        _currentBorder = _hovering ? BorderHover : BorderNormal;
+    }
+}

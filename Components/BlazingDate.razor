@@ -1,0 +1,274 @@
+﻿@using System.Globalization
+
+
+<Row Width="@(Width)" Height="@(Height)">
+    <BlazingTimedInput Style="flex-grow: 2" Placeholder="@(_calendar.GetYear(_placeholder).ToString())" @bind-Text:get="@(_year)" @bind-Text:set="OnYearChanged" Width="" Height="" BackColor="@(BackColor)" TextColor="@(TextColor)" FontSize="@(FontSize)" BorderNormal="@(_yearNormalBorder)" BorderHover="@(_yearHoverBorder)" BorderTyping="@(BorderTyping)" ColorChangeWhileTyping="@(ColorChangeWhileTyping)" BorderError="" Validator="_ => true" DelayMilliseconds="@(DelayMilliseconds)"></BlazingTimedInput>
+    <BlazingTimedInput Style="flex-grow: 1" Placeholder="@(_calendar.GetMonth(_placeholder).ToString())" @bind-Text:get="@(_month)" @bind-Text:set="OnMonthChanged" Width="" Height="" BackColor="@(BackColor)" TextColor="@(TextColor)" FontSize="@(FontSize)" BorderNormal="@(_monthNormalBorder)" BorderHover="@(_monthHoverBorder)" BorderTyping="@(BorderTyping)" ColorChangeWhileTyping="@(ColorChangeWhileTyping)" BorderError="" Validator="_ => true" DelayMilliseconds="@(DelayMilliseconds)"></BlazingTimedInput>
+    <BlazingTimedInput Style="flex-grow: 1" Placeholder="@(_calendar.GetDayOfMonth(_placeholder).ToString())" @bind-Text:get="@(_day)" @bind-Text:set="OnDayChanged" Width="" Height="" BackColor="@(BackColor)" TextColor="@(TextColor)" FontSize="@(FontSize)" BorderNormal="@(_dayNormalBorder)" BorderHover="@(_dayHoverBorder)" BorderTyping="@(BorderTyping)" ColorChangeWhileTyping="@(ColorChangeWhileTyping)" BorderError="" Validator="_ => true" DelayMilliseconds="@(DelayMilliseconds)"></BlazingTimedInput>
+</Row>
+
+
+@code
+{
+    private readonly PersianCalendar _calendar = new();
+    private readonly DateTime _placeholder = DateTime.Now;
+    string _year = "";
+    string _yearNormalBorder = "";
+    string _yearHoverBorder = "";
+    bool _yearNeverSet;
+    bool _yearIntOk;
+    string _month = "";
+    string _monthNormalBorder = "";
+    string _monthHoverBorder = "";
+    bool _monthNeverSet;
+    bool _monthIntOk;
+    string _day = "";
+    string _dayNormalBorder = "";
+    string _dayHoverBorder = "";
+    bool _dayNeverSet;
+    bool _dayIntOk;
+    bool _combinationOk;
+
+    [Parameter]
+    public DateTime Date { get; set; }
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public bool ColorChangeWhileTyping { get; set; }
+
+    [Parameter]
+    public string BorderTyping { get; set; } = "";
+
+    [Parameter]
+    public string BorderError { get; set; } = "";
+
+    [Parameter]
+    public int DelayMilliseconds { get; set; } = 2000;
+
+    [Parameter]
+    public string TextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public EventCallback<DateTime> DateChanged { get; set; }
+
+    private Task Build()
+    {
+        int minYear = 1;
+        int maxYear = _calendar.GetYear(_calendar.MaxSupportedDateTime);
+        bool anyError = false;
+        bool canBuildResult = !(_yearNeverSet || _monthNeverSet || _dayNeverSet);
+        int yearInt = 0;
+        int monthInt = 0; 
+        int dayInt = 0;
+        if (!_yearNeverSet)
+        {
+            if (!int.TryParse(_year, out yearInt) ||
+                yearInt > maxYear || yearInt < minYear)
+            {
+                anyError = true;
+                _yearIntOk = false;
+            }
+            else
+            {
+                _yearIntOk = true;
+            }
+        }
+        
+        if (!_monthNeverSet)
+        {
+            if (!int.TryParse(_month, out monthInt) ||
+                monthInt > 12 || monthInt < 1)
+            {
+                anyError = true;
+                _monthIntOk = false;
+            }
+            else
+            {
+                _monthIntOk = true;
+            }
+        }
+        if (!_dayNeverSet)
+        {
+            if (!int.TryParse(_day, out dayInt) ||
+                dayInt > 31 || dayInt < 1)
+            {
+                anyError = true;
+                _dayIntOk = false;
+            }
+            else
+            {
+                _dayIntOk = true;
+            }
+        }
+        //Try to combine all together.
+        if (canBuildResult && !anyError)
+        {
+            int maxDateYear = maxYear;
+            int maxDateMonth = _calendar.GetMonth(_calendar.MaxSupportedDateTime);
+            int maxDateDay = _calendar.GetDayOfMonth(_calendar.MaxSupportedDateTime);
+            bool exceedingMax = false;
+            //As maximum persian date is 10/13/9378 we should check the combination too.
+            //We already know yearInt is not greater than max.
+            if (yearInt == maxDateYear)
+            {
+                if (monthInt > maxDateMonth)
+                {
+                    exceedingMax = true;
+                }
+                else
+                {
+                    if (monthInt == maxDateMonth)
+                    {
+                        if (dayInt > maxDateDay)
+                        {
+                            exceedingMax = true;
+                        }
+                    }
+                }
+            }
+            if (exceedingMax)
+            {
+                anyError = true;
+                _combinationOk = false;
+            }
+            else
+            {
+                _combinationOk = true;
+            }
+        }
+        SyncBorders();
+        if (anyError) return Task.CompletedTask;
+        return DateChanged.InvokeAsync(_calendar.ToDateTime(yearInt, monthInt, dayInt, 0, 0, 0, 0));
+    }
+
+
+    private Task OnYearChanged(string args)
+    {
+        _yearNeverSet = false;
+        _year = args;
+        return Build();
+    }
+
+    private Task OnMonthChanged(string args)
+    {
+        _monthNeverSet = false;
+        _month = args;
+        return Build();
+    }
+
+    private Task OnDayChanged(string args)
+    {
+        _dayNeverSet = false;
+        _day = args;
+        return Build();
+    }
+
+    private void SyncBorders()
+    {
+        bool couldBuildResult = !(_yearNeverSet || _monthNeverSet || _dayNeverSet);
+        bool hadBuilt = couldBuildResult && _dayIntOk && _monthIntOk && _yearIntOk;
+        if (hadBuilt)
+        {
+            if (_combinationOk)
+            {
+                _dayNormalBorder = BorderNormal;
+                _dayHoverBorder = BorderHover;
+                _monthNormalBorder = BorderNormal;
+                _monthHoverBorder = BorderHover;
+                _yearNormalBorder = BorderNormal;
+                _yearHoverBorder = BorderHover;
+            }
+            else
+            {
+                _dayNormalBorder = BorderError;
+                _dayHoverBorder = BorderError;
+                _monthNormalBorder = BorderError;
+                _monthHoverBorder = BorderError;
+                _yearNormalBorder = BorderError;
+                _yearHoverBorder = BorderError;
+            }
+        }
+        else
+        {
+            //No combination was performed. Check each field separately
+            if (_dayNeverSet || _dayIntOk)
+            {
+                _dayNormalBorder = BorderNormal;
+                _dayHoverBorder = BorderHover;
+            }
+            else
+            {
+                _dayNormalBorder = BorderError;
+                _dayHoverBorder = BorderError;
+            }
+            if (_monthNeverSet || _monthIntOk)
+            {
+                _monthNormalBorder = BorderNormal;
+                _monthHoverBorder = BorderHover;
+            }
+            else
+            {
+                _monthNormalBorder = BorderError;
+                _monthHoverBorder = BorderError;
+            }
+            if (_yearNeverSet || _yearIntOk)
+            {
+                _yearNormalBorder = BorderNormal;
+                _yearHoverBorder = BorderHover;
+            }
+            else
+            {
+                _yearNormalBorder = BorderError;
+                _yearHoverBorder = BorderError;
+            }
+        }
+    }
+
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        bool noDate = Date == default;
+        if (noDate)
+        {
+            //Reset things
+            _year = "";
+            _yearNeverSet = true;
+            _month = "";
+            _monthNeverSet = true;
+            _day = "";
+            _dayNeverSet = true;
+        }
+        else
+        {
+            //A small redundancy: each time the DateTime gets synced thee bindings get instantiated unnecessarily.
+            _year = _calendar.GetYear(Date).ToString();
+            _yearNeverSet = false;
+            _yearIntOk = true;
+            _month = _calendar.GetMonth(Date).ToString();
+            _monthNeverSet = false;
+            _monthIntOk = true;
+            _day = _calendar.GetDayOfMonth(Date).ToString();
+            _dayNeverSet = false;
+            _dayIntOk = true;
+        }
+        SyncBorders();
+    }
+}

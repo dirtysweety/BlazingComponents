@@ -1,0 +1,171 @@
+@using BlazingComponents.Components.EventArgs
+@using Microsoft.AspNetCore.Components.Rendering
+@using BlazingComponents.Components.Binding
+@using BlazingComponents.Components.Other
+@using BlazingUtilities
+@implements IDisposable
+@typeparam T
+
+
+<input @bind:event="oninput" @bind:get="@(_input)" @bind:set="OnInput" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" style="width: @Width; height: @Height; font-size: @FontSize; border: none; outline: none; border-bottom: @(_currentBorder); background-color: @(BackColor); font-size: @(FontSize); color: @(TextColor); text-align: center"
+       type="text" placeholder="@Placeholder" />
+
+
+@code
+{
+    string _input = "";
+    private readonly List<T> _matches = new();
+    private bool _firstOnParametersSet = true;
+    TimedEventRaiser? _raiser;
+    bool _hovering;
+    string _currentBorder = "";
+
+    [Parameter]
+    public string Placeholder { get; set; } = "";
+
+    [Parameter]
+    public BlazingSearchBoxContext<T>? Context { get; set; }
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string BorderNormal { get; set; } = "";
+
+    [Parameter]
+    public string BorderHover { get; set; } = "";
+
+    [Parameter]
+    public bool ColorChangeWhileTyping { get; set; }
+
+    [Parameter]
+    public string BorderTyping { get; set; } = "";
+
+    [Parameter]
+    public int DelayMilliseconds { get; set; } = 2000;
+
+    [Parameter]
+    public string TextColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter, EditorRequired]
+    public List<T>? Collection { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<T, string>? Selector { get; set; }
+
+    [Parameter]
+    public EventCallback<BlazingSearchBoxContext<T>> ContextChanged { get; set; }
+
+    Task OnInput(string input)
+    {
+        if (_raiser == null) // Disposed
+        {
+            return Task.CompletedTask; //Just Ignore Everything!!
+        }
+        _input = input;
+        _raiser.Set();
+        SyncBorder();
+        Context!.Text = input;
+        Context.EventSource = BlazingSearchBoxEventSource.Input;
+        return ContextChanged.InvokeAsync(Context);
+    }
+
+    private async Task WorkItem()
+    {
+        //One case: Suppose that the timer finishes exactly when a re-render is already happening.
+        //This work item will obviously run after the re-render. But the raiser has already set
+        //it's Running property to false. So the re-render code sees the raiser as not running
+        //but the elapsed callback has not run yet.
+        //This does not create any problem with the current component code.
+        SyncBorder();
+        Context!.EventSource = BlazingSearchBoxEventSource.TimedInput;
+        await ContextChanged.InvokeAsync(Context);
+        await PerformSearchAsync();
+
+    }
+
+    private async Task OnEventRaised()
+    {
+        await InvokeAsync(WorkItem);
+    }
+
+    public Task PerformSearchAsync()
+    {
+        _matches.Clear();
+        if (string.IsNullOrEmpty(_input))
+        {
+            _matches.AddRange(Collection!);
+        }
+        else
+        {
+            _matches.AddRange(from item in Collection let propValue = Selector!.Invoke(item) where !string.IsNullOrEmpty(propValue) where propValue.Contains(_input) select item);
+        }
+        Context!.Matches = new List<T>(_matches);
+        Context.EventSource = BlazingSearchBoxEventSource.Search;
+        return ContextChanged.InvokeAsync(Context);
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncBorder();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncBorder();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        if (Collection == null || Selector == null) throw new Exception("SearchBox initialized incorrectly.");
+        if (Context == null) throw new Exception("Binding is null");
+        _raiser = new TimedEventRaiser(DelayMilliseconds, OnEventRaised);
+        _input = Context.Text;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        if (Collection == null || Selector == null) throw new Exception("SearchBox initialized incorrectly.");
+        if (Context == null) throw new Exception("Context is null");
+        if (_raiser == null) // Disposed
+        {
+            return;  //Just Ignore Everything!!
+        }
+        _input = Context.Text;
+        SyncBorder();
+        if (Context.ForceSearching)
+        {
+            if (Context.CancelCurrent) _raiser!.CancelIfRunning();
+            await PerformSearchAsync();
+        }
+    }
+
+    void SyncBorder()
+    {
+        if (_raiser == null) // Disposed
+        {
+            return; //Just Ignore Everything!!
+        }
+        _currentBorder = _raiser!.Running && ColorChangeWhileTyping ? BorderTyping : _hovering ? BorderHover : BorderNormal;
+    }
+
+    public void Dispose()
+    {
+        _raiser?.Dispose();
+        _raiser = null;
+    }
+}

@@ -1,0 +1,26 @@
+<div style="display: flex; flex-direction: row; row-gap: @(RowGap); width: @(Width); height: @(Height); @Style" @attributes="ExtraAttributes">
+    @ChildContent
+</div>
+
+
+
+@code
+{
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string RowGap { get; set; } = "0";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? ExtraAttributes { get; set; }
+}

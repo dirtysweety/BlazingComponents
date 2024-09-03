@@ -1,0 +1,40 @@
+<div @onmouseover="OnMouseOverContainer" @onmouseleave="OnMouseLeaveContainer" @onclick="OnClick" style="display: flex; position: relative; width: 50px; height: 50px; cursor: pointer; @Style">
+    <div style="height: 5px; width: 50px; position: absolute; top: 25px; border-radius: 2px; transition: all 0.3s ease-in; @(_rightleftStyle)"></div>
+    <div style="height: 5px; width: 50px; position: absolute; top: 25px; border-radius: 2px; transition: all 0.3s ease-in; @(_leftrightStyle)"></div>
+</div>
+
+
+
+@code
+{
+    private const string LeftRightHoverStyle = "background-color: red; transform: rotate(-45deg)";
+    private const string RightLeftHoverStyle = "background-color: red; transform: rotate(45deg)";
+    private const string LeftRightNormalStyle = "background-color: gray; transform: rotate(45deg)";
+    private const string RightLeftNormalStyle = "background-color: gray; transform: rotate(-45deg)";
+    string _leftrightStyle = LeftRightNormalStyle;
+    string _rightleftStyle = RightLeftNormalStyle;
+
+    [Parameter]
+    public EventCallback Click { get; set; }
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    Task OnClick()
+    {
+        return Click.InvokeAsync();
+    }
+
+
+    private void OnMouseOverContainer(MouseEventArgs obj)
+    {
+        _leftrightStyle = LeftRightHoverStyle;
+        _rightleftStyle = RightLeftHoverStyle;
+    }
+
+    private void OnMouseLeaveContainer()
+    {
+        _leftrightStyle = LeftRightNormalStyle;
+        _rightleftStyle = RightLeftNormalStyle;
+    }
+}

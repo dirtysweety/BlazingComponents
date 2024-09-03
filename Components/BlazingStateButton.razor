@@ -1,0 +1,118 @@
+@typeparam T where T : struct, Enum
+
+
+<div style="display: flex; width: @(Width); height: @(Height); justify-content: center; align-items: center; color: @(_currentColor); background-color: @(_currentBackColor); border: @(_currentBorder); user-select: none; transition: @(Transition); @Style"
+     @onclick:stopPropagation="@ClickStopPropagation" @onclick="OnClick"
+     @onmouseenter="OnMouseEnter"
+     @onmouseleave="OnMouseLeave">
+    <div>@(_text)</div>
+</div>
+
+
+@code
+{
+    string _text = "";
+    int _stateIndex;
+    private bool _hovering;
+    private string _currentColor = "";
+    private string _currentBackColor = "";
+    private string _currentBorder = "";
+    readonly List<T> _states = new();
+
+    [Parameter]
+    public T State { get; set; } = default;
+    
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string Border { get; set; } = "";
+
+    [Parameter]
+    public string HoverBorder { get; set; } = "";
+
+    [Parameter]
+    public string Color { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+
+    [Parameter]
+    public bool ClickStopPropagation { get; set; } = true;
+
+    [Parameter]
+    public string Transition { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<T> StateChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public Func<T, string>? RepresentationFunc { get; set; }
+
+
+    private Task OnClick()
+    {
+        if (_stateIndex < _states.Count - 1)
+        {
+            _stateIndex++;
+        }
+        else
+        {
+            _stateIndex = 0;
+        }
+        var state = _states[_stateIndex];
+        return StateChanged.InvokeAsync(state);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (RepresentationFunc == null) throw new Exception("Func is null");
+        _states.AddRange(Enum.GetValues<T>());
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (RepresentationFunc == null) throw new Exception("Func is null");
+        _stateIndex = _states.IndexOf(State);
+        if (_stateIndex == -1) throw new Exception("Invalid state");
+        _text = RepresentationFunc(State);
+        SyncColors();
+    }
+
+    void SyncColors()
+    {
+        _currentColor = _hovering ? HoverColor : Color;
+        _currentBackColor = _hovering ? HoverBackColor : BackColor;
+        _currentBorder = _hovering ? HoverBorder == "" ? Border : HoverBorder : Border;
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncColors();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncColors();
+    }
+
+}
