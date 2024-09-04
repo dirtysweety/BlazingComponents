@@ -1,0 +1,103 @@
+
+<div @onclick:stopPropagation="@ClickStopPropagation" 
+     @onclick="OnClick"
+     @onmouseenter="OnMouseEnter"
+     @onmouseleave="OnMouseLeave"
+     style="display: flex; width: @(Width); height: @(Height); justify-content: start; align-items: center; color: @(_currentColor); background-color: @(_currentBackColor); border: @(_currentBorder)">
+    
+    <input type="checkbox" @onclick:stopPropagation="true" @bind:get="@(_checked)" @bind:set="Set" />
+    <div style="display: flex; width: 4px"></div>
+    <div style="font-size: @(FontSize); user-select: none">@(Text)</div>
+
+</div>
+
+
+
+@code
+{
+    [Parameter]
+    public string Text { get; set; } = "Check me";
+
+    [Parameter]
+    public bool Checked { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> CheckedChanged { get; set; }
+
+    [Parameter]
+    public string Width { get; set; } = "";
+
+    [Parameter]
+    public string Height { get; set; } = "";
+
+    [Parameter]
+    public string FontSize { get; set; } = "inherit";
+
+    [Parameter]
+    public string Color { get; set; } = "inherit";
+
+    [Parameter]
+    public string BackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string HoverBackColor { get; set; } = "inherit";
+
+    [Parameter]
+    public string Border { get; set; } = "";
+
+    [Parameter]
+    public string HoverBorder { get; set; } = "";
+
+    [Parameter]
+    public string Style { get; set; } = "";
+    
+    [Parameter]
+    public bool ClickStopPropagation { get; set; } = true;
+
+    private bool _hovering = false;
+    private string _currentColor = "";
+    private string _currentBackColor = "";
+    private string _currentBorder = "";
+    private bool _checked;
+
+    void Set(bool c)
+    {
+        _checked = c;
+        CheckedChanged.InvokeAsync(_checked);
+    }
+
+    void OnClick()
+    {
+        Set(!_checked);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        SyncColors();
+        _checked = Checked;
+    }
+
+    void SyncColors()
+    {
+        _currentColor = _hovering ? HoverColor : Color;
+        _currentBackColor = _hovering ? HoverBackColor : BackColor;
+        _currentBorder = _hovering ? HoverBorder == "" ? Border : HoverBorder : Border;
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+        SyncColors();
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+        SyncColors();
+    }
+
+}
